@@ -33,13 +33,15 @@ src/
 ├── logger.ts           # pluggable Logger interface + noopLogger
 ├── service.ts          # createEmailService — defaults, fan-out, disable switch
 └── providers/
-    ├── ses.ts          # AWS SES (SendEmailCommand + SendRawEmailCommand)
+    ├── ses.ts          # AWS SES v2 (@aws-sdk/client-sesv2, SendEmailCommand + Content.Simple)
+    ├── resend.ts       # Resend (resend SDK)
+    ├── smtp.ts         # SMTP / classic mail (nodemailer)
     └── mock.ts         # in-memory provider for tests
 ```
 
 `package.json#exports` points directly at `./src/*.ts`. There is no build step. Consumers' bundlers (Vite/esbuild/SvelteKit) compile the `.ts` source as part of their own pipeline.
 
-`@goobits/email` (root barrel) ships only zero-dep code (types + service + mock). Provider-specific subpaths (`/ses`, future `/resend`, `/smtp`) live in their own files so consumers don't transitively pull SDKs they don't use.
+`@goobits/email` (root barrel) ships only zero-dep code (types + service + mock). Provider-specific subpaths (`/ses`, `/resend`, `/smtp`) live in their own files so consumers don't transitively pull SDKs they don't use.
 
 ## Code style
 

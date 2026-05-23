@@ -1,21 +1,23 @@
 # @goobits/email
 
 Provider-agnostic email sender for Node, Bun, Deno, and Cloudflare Workers.
-Pluggable transport interface — ships an AWS SES provider + an in-memory
-mock; bring your own implementations for Resend, SMTP/nodemailer, Cloudflare
-Email Workers, or anything else that can deliver a message.
+Pluggable transport interface — ships AWS SES, Resend, SMTP, and an
+in-memory mock provider out of the box; bring your own implementation for
+Cloudflare Email Workers or anything else that can deliver a message.
 
 ## Install
 
 ```sh
 pnpm add @goobits/email
-# AWS SES users:
-pnpm add @aws-sdk/client-sesv2
+# Pick the provider you need (all are optional peer deps):
+pnpm add @aws-sdk/client-sesv2  # for @goobits/email/ses
+pnpm add resend                  # for @goobits/email/resend
+pnpm add nodemailer              # for @goobits/email/smtp
 ```
 
-`@aws-sdk/client-sesv2` is an **optional peer dep** — only required if you
-import `@goobits/email/ses`. Consumers using Resend / SMTP / a custom
-provider don't pay for it.
+`@aws-sdk/client-sesv2`, `resend`, and `nodemailer` are all **optional peer
+deps** — install only the ones whose providers you import. Consumers using
+a custom provider pay for none of them.
 
 This package publishes TypeScript source entrypoints directly; no package
 build step is required before importing it in TS-aware runtimes/toolchains.
@@ -115,18 +117,48 @@ type EmailResult =
 
 #### `createSesProvider({ client, configurationSetName? })`
 
-AWS SES provider via `@aws-sdk/client-sesv2`. The consumer owns the SES
-client (region, credentials, retry strategy). Uses SES v2 `SendEmailCommand`
-with `Content.Simple`, so AWS handles MIME assembly server-side for
-attachments + inline attachments — no hand-rolled raw MIME.
+AWS SES via `@aws-sdk/client-sesv2`. The consumer owns the SES client
+(region, credentials, retry strategy). Uses SES v2 `SendEmailCommand` with
+`Content.Simple`, so AWS handles MIME assembly server-side for attachments +
+inline attachments — no hand-rolled raw MIME.
 
 Inline attachments set `ContentDisposition: 'INLINE'` and `ContentId`;
 reference them from HTML as `cid:<cid>` (`cid` defaults to the attachment
 filename when omitted).
 
-Maps known SES errors:
+Error mapping:
 - `TooManyRequestsException` / `LimitExceededException` → `reason: 'rate-limited'`
 - `MessageRejected` / `BadRequestException` → `reason: 'invalid-recipient'`
+- everything else → `reason: 'transport-error'`
+
+#### `createResendProvider({ client, tag? })`
+
+Resend via the official `resend` SDK. The consumer owns the `Resend`
+client (API key, lifecycle). Supports cc/bcc, reply-to, custom headers,
+attachments (`Buffer` / `Uint8Array` / base64 string content).
+
+Pass a default `tag` to the factory to apply a Resend category to every
+send (visible in the Resend dashboard for filtering/analytics). Override
+per-message via `message.headers['x-resend-tag']`.
+
+Error mapping:
+- `rate_limit_exceeded` → `reason: 'rate-limited'`
+- `invalid_from_address` / `validation_error` → `reason: 'invalid-recipient'`
+- `missing_api_key` / `invalid_api_Key` / `missing_required_field` → `reason: 'configuration-missing'`
+- everything else → `reason: 'transport-error'`
+
+#### `createSmtpProvider({ transporter })`
+
+SMTP / classic mail via `nodemailer`. The consumer builds the
+transporter (host, port, TLS, auth, pool config) — that detail varies too
+much across infrastructure to live in the package. Inline attachments
+emit `cid` + `contentDisposition: 'inline'`; base64 string content is
+decoded to `Buffer` to preserve byte-level fidelity.
+
+Error mapping:
+- `EAUTH` / `ECONFIGURATION` → `reason: 'configuration-missing'`
+- `EENVELOPE` / SMTP 550 / 553 → `reason: 'invalid-recipient'`
+- SMTP 421 / 450 / 451 / 452 → `reason: 'rate-limited'`
 - everything else → `reason: 'transport-error'`
 
 #### `createMockProvider({ failAllSends?, failureReason? })`
