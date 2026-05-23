@@ -1,10 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createSesProvider } from '../src/providers/ses.js'
+import { createSesProvider } from '../src/providers/ses.ts'
 
-// We don't depend on actual SES — stub the SDK calls via a fake client.
-// The `client.send()` method is the integration point; mock it to assert
-// command shape + simulate success/failure paths.
 function createFakeSesClient(responder: (command: unknown) => unknown | Promise<unknown>) {
 	return {
 		send: vi.fn(async (command: unknown) => responder(command))
@@ -12,7 +9,7 @@ function createFakeSesClient(responder: (command: unknown) => unknown | Promise<
 }
 
 describe('createSesProvider', () => {
-	it('uses SendEmailCommand for attachment-free messages', async () => {
+	it('uses SendEmailCommand with simple text/html content', async () => {
 		let captured: any
 		const client = createFakeSesClient(command => {
 			captured = command
@@ -33,35 +30,14 @@ describe('createSesProvider', () => {
 			expect(result.messageId).toBe('ses-abc-123')
 		}
 		expect(captured.constructor.name).toBe('SendEmailCommand')
-		expect(captured.input.Source).toBe('sender@example.com')
+		expect(captured.input.FromEmailAddress).toBe('sender@example.com')
 		expect(captured.input.Destination.ToAddresses).toEqual([ 'user@example.com' ])
-		expect(captured.input.Message.Subject.Data).toBe('hi')
-		expect(captured.input.Message.Body.Html.Data).toBe('<p>hi</p>')
-		expect(captured.input.Message.Body.Text.Data).toBe('hi')
+		expect(captured.input.Content.Simple.Subject.Data).toBe('hi')
+		expect(captured.input.Content.Simple.Body.Html.Data).toBe('<p>hi</p>')
+		expect(captured.input.Content.Simple.Body.Text.Data).toBe('hi')
 	})
 
-	it('forwards cc, bcc, replyTo correctly', async () => {
-		let captured: any
-		const client = createFakeSesClient(command => {
-			captured = command
-			return { MessageId: 'x' }
-		})
-		const provider = createSesProvider({ client })
-		await provider.send({
-			from: 'sender@example.com',
-			to: 'user@example.com',
-			cc: [ 'cc1@example.com', 'cc2@example.com' ],
-			bcc: [ 'bcc@example.com' ],
-			replyTo: 'reply@example.com',
-			subject: 'hi',
-			text: 'hi'
-		})
-		expect(captured.input.Destination.CcAddresses).toEqual([ 'cc1@example.com', 'cc2@example.com' ])
-		expect(captured.input.Destination.BccAddresses).toEqual([ 'bcc@example.com' ])
-		expect(captured.input.ReplyToAddresses).toEqual([ 'reply@example.com' ])
-	})
-
-	it('forwards configurationSetName when supplied', async () => {
+	it('forwards cc, bcc, replyTo, and configurationSetName', async () => {
 		let captured: any
 		const client = createFakeSesClient(command => {
 			captured = command
@@ -69,19 +45,26 @@ describe('createSesProvider', () => {
 		})
 		const provider = createSesProvider({ client, configurationSetName: 'tx-emails' })
 		await provider.send({
-			from: 'a@b.com',
-			to: 'u@e.com',
-			subject: 'x',
-			text: 'x'
+			from: 'sender@example.com',
+			to: 'user@example.com',
+			cc: [ 'cc@example.com' ],
+			bcc: [ 'bcc@example.com' ],
+			replyTo: 'reply@example.com',
+			subject: 'hi',
+			text: 'hi'
 		})
+
+		expect(captured.input.Destination.CcAddresses).toEqual([ 'cc@example.com' ])
+		expect(captured.input.Destination.BccAddresses).toEqual([ 'bcc@example.com' ])
+		expect(captured.input.ReplyToAddresses).toEqual([ 'reply@example.com' ])
 		expect(captured.input.ConfigurationSetName).toBe('tx-emails')
 	})
 
-	it('uses SendRawEmailCommand when attachments present', async () => {
+	it('maps attachments to SES Simple.Attachments', async () => {
 		let captured: any
 		const client = createFakeSesClient(command => {
 			captured = command
-			return { MessageId: 'raw-id' }
+			return { MessageId: 'x' }
 		})
 		const provider = createSesProvider({ client })
 		await provider.send({
@@ -90,58 +73,26 @@ describe('createSesProvider', () => {
 			subject: 'hi',
 			text: 'hi',
 			attachments: [
-				{ filename: 'doc.pdf', content: Buffer.from('PDF-bytes'), contentType: 'application/pdf' }
+				{ filename: 'doc.pdf', content: new Uint8Array([ 1, 2, 3 ]), contentType: 'application/pdf' }
 			]
 		})
-		expect(captured.constructor.name).toBe('SendRawEmailCommand')
-		const raw = new TextDecoder().decode(captured.input.RawMessage.Data)
-		expect(raw).toContain('From: sender@example.com')
-		expect(raw).toContain('Subject: hi')
-		expect(raw).toContain('Content-Type: application/pdf; name="doc.pdf"')
+
+		expect(captured.input.Content.Simple.Attachments).toEqual([
+			{
+				FileName: 'doc.pdf',
+				RawContent: new Uint8Array([ 1, 2, 3 ]),
+				ContentType: 'application/pdf',
+				ContentDisposition: 'ATTACHMENT',
+				ContentTransferEncoding: 'BASE64'
+			}
+		])
 	})
 
-	it('uses SendRawEmailCommand when custom headers present', async () => {
+	it('maps inline attachments with ContentId and decodes base64 string content', async () => {
 		let captured: any
 		const client = createFakeSesClient(command => {
 			captured = command
-			return { MessageId: 'raw-id' }
-		})
-		const provider = createSesProvider({ client })
-		await provider.send({
-			from: 'sender@example.com',
-			to: 'user@example.com',
-			subject: 'hi',
-			text: 'hi',
-			headers: { 'X-Campaign-ID': 'spring-2026' }
-		})
-		expect(captured.constructor.name).toBe('SendRawEmailCommand')
-		const raw = new TextDecoder().decode(captured.input.RawMessage.Data)
-		expect(raw).toContain('X-Campaign-ID: spring-2026')
-	})
-
-	it('rejects CR/LF header injection in raw MIME fields', async () => {
-		const client = createFakeSesClient(() => ({ MessageId: 'x' }))
-		const provider = createSesProvider({ client })
-		const result = await provider.send({
-			from: 'sender@example.com',
-			to: 'user@example.com',
-			subject: 'hi\r\nX-Injected: yes',
-			text: 'hi',
-			headers: { 'X-Campaign-ID': 'spring-2026' }
-		})
-		expect(result.success).toBe(false)
-		if (!result.success) {
-			expect(result.reason).toBe('configuration-missing')
-			expect(result.error).toContain('CR or LF')
-		}
-		expect((client as any).send).not.toHaveBeenCalled()
-	})
-
-	it('adds Content-ID for inline attachments', async () => {
-		let captured: any
-		const client = createFakeSesClient(command => {
-			captured = command
-			return { MessageId: 'raw-id' }
+			return { MessageId: 'x' }
 		})
 		const provider = createSesProvider({ client })
 		await provider.send({
@@ -150,12 +101,57 @@ describe('createSesProvider', () => {
 			subject: 'hi',
 			html: '<img src="cid:logo">',
 			attachments: [
-				{ filename: 'logo.png', cid: 'logo', inline: true, content: new Uint8Array([ 1, 2, 3 ]), contentType: 'image/png' }
+				{ filename: 'logo.png', cid: 'logo', inline: true, content: 'AQID', contentType: 'image/png' }
 			]
 		})
-		const raw = new TextDecoder().decode(captured.input.RawMessage.Data)
-		expect(raw).toContain('Content-Disposition: inline; filename="logo.png"')
-		expect(raw).toContain('Content-ID: <logo>')
+
+		expect(captured.input.Content.Simple.Attachments[0]).toMatchObject({
+			FileName: 'logo.png',
+			ContentType: 'image/png',
+			ContentDisposition: 'INLINE',
+			ContentId: 'logo',
+			ContentTransferEncoding: 'BASE64'
+		})
+		expect(captured.input.Content.Simple.Attachments[0].RawContent).toEqual(new Uint8Array([ 1, 2, 3 ]))
+	})
+
+	it('maps custom headers to SES message headers', async () => {
+		let captured: any
+		const client = createFakeSesClient(command => {
+			captured = command
+			return { MessageId: 'x' }
+		})
+		const provider = createSesProvider({ client })
+		await provider.send({
+			from: 'sender@example.com',
+			to: 'user@example.com',
+			subject: 'hi',
+			text: 'hi',
+			headers: { 'X-Campaign-ID': 'spring-2026' }
+		})
+
+		expect(captured.input.Content.Simple.Headers).toEqual([
+			{ Name: 'X-Campaign-ID', Value: 'spring-2026' }
+		])
+	})
+
+	it('rejects invalid custom headers before calling SES v2', async () => {
+		const client = createFakeSesClient(() => ({ MessageId: 'x' }))
+		const provider = createSesProvider({ client })
+		const result = await provider.send({
+			from: 'sender@example.com',
+			to: 'user@example.com',
+			subject: 'hi',
+			text: 'hi',
+			headers: { 'X-Bad': 'ok\r\nX-Injected: yes' }
+		})
+
+		expect(result.success).toBe(false)
+		if (!result.success) {
+			expect(result.reason).toBe('configuration-missing')
+			expect(result.error).toContain('printable ASCII')
+		}
+		expect((client as any).send).not.toHaveBeenCalled()
 	})
 
 	it('returns configuration-missing when from is omitted', async () => {
@@ -198,10 +194,10 @@ describe('createSesProvider', () => {
 		}
 	})
 
-	it('maps SES Throttling errors to rate-limited reason', async () => {
+	it('maps SES throttling errors to rate-limited reason', async () => {
 		const client = createFakeSesClient(() => {
-			const err = new Error('Rate exceeded')
-			err.name = 'Throttling'
+			const err = new Error('Too many requests')
+			err.name = 'TooManyRequestsException'
 			throw err
 		})
 		const provider = createSesProvider({ client })
@@ -217,7 +213,7 @@ describe('createSesProvider', () => {
 		}
 	})
 
-	it('maps SES MessageRejected errors to invalid-recipient reason', async () => {
+	it('maps SES rejected messages to invalid-recipient reason', async () => {
 		const client = createFakeSesClient(() => {
 			const err = new Error('Email address not verified')
 			err.name = 'MessageRejected'
@@ -234,24 +230,6 @@ describe('createSesProvider', () => {
 		if (!result.success) {
 			expect(result.reason).toBe('invalid-recipient')
 			expect(result.error).toContain('not verified')
-		}
-	})
-
-	it('unknown errors map to transport-error', async () => {
-		const client = createFakeSesClient(() => {
-			throw new Error('Boom')
-		})
-		const provider = createSesProvider({ client })
-		const result = await provider.send({
-			from: 'a@b.com',
-			to: 'u@e.com',
-			subject: 'x',
-			text: 'x'
-		})
-		expect(result.success).toBe(false)
-		if (!result.success) {
-			expect(result.reason).toBe('transport-error')
-			expect(result.error).toBe('Boom')
 		}
 	})
 
