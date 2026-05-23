@@ -1,0 +1,59 @@
+{
+	"name": "@goobits/email",
+	"version": "1.0.0",
+	"description": "Provider-agnostic email sender with a pluggable transport interface. Ships AWS SES + in-memory mock providers; bring your own for Resend, SMTP, etc.",
+	"type": "module",
+	"main": "./src/index.ts",
+	"types": "./src/index.ts",
+	"sideEffects": false,
+	"exports": {
+		".": "./src/index.ts",
+		"./ses": "./src/providers/ses.ts"
+	},
+	"keywords": [
+		"email",
+		"smtp",
+		"aws-ses",
+		"transactional-email",
+		"esm",
+		"typescript",
+		"sveltekit"
+	],
+	"author": "Goobits",
+	"license": "MIT",
+	"homepage": "https://github.com/goobits/email#readme",
+	"bugs": "https://github.com/goobits/email/issues",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/goobits/email.git"
+	},
+	"engines": {
+		"node": ">=22"
+	},
+	"packageManager": "pnpm@10.13.1",
+	"peerDependencies": {
+		"@aws-sdk/client-ses": "^3.0.0",
+		"typescript": "^5.0.0"
+	},
+	"peerDependenciesMeta": {
+		"@aws-sdk/client-ses": {
+			"optional": true
+		},
+		"typescript": {
+			"optional": true
+		}
+	},
+	"devDependencies": {
+		"@aws-sdk/client-ses": "^3.0.0",
+		"@types/node": "^22.10.0",
+		"typescript": "^5.9.0",
+		"vitest": "^4.0.0"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"test:coverage": "vitest run --coverage",
+		"clean": "rm -rf node_modules .turbo"
+	}
+}
