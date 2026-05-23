@@ -1,21 +1,24 @@
 # @goobits/email
 
 Provider-agnostic email sender for Node, Bun, Deno, and Cloudflare Workers.
-Pluggable transport interface — ships an AWS SES provider + an in-memory
-mock; bring your own implementations for Resend, SMTP/nodemailer, Cloudflare
-Email Workers, or anything else that can deliver a message.
+Pluggable transport interface — ships AWS SES v2, legacy AWS SES, and an
+in-memory mock provider; bring your own implementations for Resend, SMTP,
+Cloudflare Email Workers, or anything else that can deliver a message.
 
 ## Install
 
 ```sh
 pnpm add @goobits/email
-# AWS SES users:
+# AWS SES v2 users (recommended):
+pnpm add @aws-sdk/client-sesv2
+# Legacy AWS SES users:
 pnpm add @aws-sdk/client-ses
 ```
 
-`@aws-sdk/client-ses` is an **optional peer dep** — only required if you
-import `@goobits/email/ses`. Consumers using Resend / SMTP / a custom
-provider don't pay for it.
+`@aws-sdk/client-sesv2` and `@aws-sdk/client-ses` are **optional peer deps**.
+They are only required if you import `@goobits/email/sesv2` or
+`@goobits/email/ses`. Consumers using Resend / SMTP / a custom provider don't
+pay for them.
 
 This package publishes TypeScript source entrypoints directly; no package
 build step is required before importing it in TS-aware runtimes/toolchains.
@@ -24,11 +27,11 @@ build step is required before importing it in TS-aware runtimes/toolchains.
 
 ```ts
 import { createEmailService } from '@goobits/email'
-import { createSesProvider } from '@goobits/email/ses'
-import { SESClient } from '@aws-sdk/client-ses'
+import { createSesV2Provider } from '@goobits/email/sesv2'
+import { SESv2Client } from '@aws-sdk/client-sesv2'
 
 const mailer = createEmailService({
-  provider: createSesProvider({ client: new SESClient({ region: 'us-east-1' }) }),
+  provider: createSesV2Provider({ client: new SESv2Client({ region: 'us-east-1' }) }),
   from: 'no-reply@example.com',
   replyTo: 'support@example.com'
 })
@@ -113,12 +116,29 @@ type EmailResult =
 
 ### Providers
 
+#### `createSesV2Provider({ client, configurationSetName? })`
+
+Recommended AWS SES provider via `@aws-sdk/client-sesv2` v3. The consumer owns
+the SES v2 client (region, credentials, retry strategy). Uses SES v2
+`SendEmailCommand` with `Content.Simple`, including SES-managed attachments and
+inline attachments.
+
+This provider avoids raw MIME construction for the package's normal feature
+set. Attachments are passed through SES v2 attachment objects; inline
+attachments set `ContentDisposition: 'INLINE'` and `ContentId`, so reference
+them from HTML as `cid:<cid>`.
+
+Maps known SES v2 errors:
+- `TooManyRequestsException` / `LimitExceededException` → `reason: 'rate-limited'`
+- `MessageRejected` / `BadRequestException` → `reason: 'invalid-recipient'`
+- everything else → `reason: 'transport-error'`
+
 #### `createSesProvider({ client, configurationSetName? })`
 
-AWS SES via `@aws-sdk/client-ses` v3. The consumer owns the SES client
-(region, credentials, retry strategy). Uses `SendEmailCommand` for
-attachment-free messages and `SendRawEmailCommand` (RFC 2822 raw MIME)
-when attachments or custom headers are present.
+Legacy AWS SES provider via `@aws-sdk/client-ses` v3. The consumer owns the SES
+client (region, credentials, retry strategy). Uses `SendEmailCommand` for
+attachment-free messages and `SendRawEmailCommand` (RFC 2822 raw MIME) when
+attachments or custom headers are present.
 
 The raw MIME path rejects CR/LF in header-bearing fields and validates
 custom header names before sending. Inline attachments emit `Content-ID`;

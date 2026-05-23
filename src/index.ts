@@ -7,7 +7,8 @@
  * own subpaths so consumers don't pay for unused providers:
  *
  *   - `@goobits/email`        — types + service + mock provider (no deps)
- *   - `@goobits/email/ses`    — AWS SES provider (peer: @aws-sdk/client-ses)
+ *   - `@goobits/email/sesv2`  — AWS SES v2 provider (peer: @aws-sdk/client-sesv2)
+ *   - `@goobits/email/ses`    — legacy AWS SES provider (peer: @aws-sdk/client-ses)
  *
  * @module @goobits/email
  */
