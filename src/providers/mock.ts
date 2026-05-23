@@ -5,7 +5,7 @@
  * @module @goobits/email/mock
  */
 
-import type { EmailMessage, EmailProvider, EmailResult } from '../types.js'
+import type { EmailMessage, EmailProvider, EmailResult } from '../types.ts'
 
 export interface MockProviderOptions {
 	/**

@@ -17,13 +17,13 @@ export {
 	type EmailService,
 	type EmailServiceConfig,
 	createEmailService
-} from './service.js'
+} from './service.ts'
 
 export {
 	type Logger,
 	type LogContext,
 	noopLogger
-} from './logger.js'
+} from './logger.ts'
 
 export {
 	type EmailAddress,
@@ -31,10 +31,10 @@ export {
 	type EmailMessage,
 	type EmailProvider,
 	type EmailResult
-} from './types.js'
+} from './types.ts'
 
 export {
 	type MockProvider,
 	type MockProviderOptions,
 	createMockProvider
-} from './providers/mock.js'
+} from './providers/mock.ts'

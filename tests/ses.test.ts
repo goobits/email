@@ -119,6 +119,45 @@ describe('createSesProvider', () => {
 		expect(raw).toContain('X-Campaign-ID: spring-2026')
 	})
 
+	it('rejects CR/LF header injection in raw MIME fields', async () => {
+		const client = createFakeSesClient(() => ({ MessageId: 'x' }))
+		const provider = createSesProvider({ client })
+		const result = await provider.send({
+			from: 'sender@example.com',
+			to: 'user@example.com',
+			subject: 'hi\r\nX-Injected: yes',
+			text: 'hi',
+			headers: { 'X-Campaign-ID': 'spring-2026' }
+		})
+		expect(result.success).toBe(false)
+		if (!result.success) {
+			expect(result.reason).toBe('configuration-missing')
+			expect(result.error).toContain('CR or LF')
+		}
+		expect((client as any).send).not.toHaveBeenCalled()
+	})
+
+	it('adds Content-ID for inline attachments', async () => {
+		let captured: any
+		const client = createFakeSesClient(command => {
+			captured = command
+			return { MessageId: 'raw-id' }
+		})
+		const provider = createSesProvider({ client })
+		await provider.send({
+			from: 'sender@example.com',
+			to: 'user@example.com',
+			subject: 'hi',
+			html: '<img src="cid:logo">',
+			attachments: [
+				{ filename: 'logo.png', cid: 'logo', inline: true, content: new Uint8Array([ 1, 2, 3 ]), contentType: 'image/png' }
+			]
+		})
+		const raw = new TextDecoder().decode(captured.input.RawMessage.Data)
+		expect(raw).toContain('Content-Disposition: inline; filename="logo.png"')
+		expect(raw).toContain('Content-ID: <logo>')
+	})
+
 	it('returns configuration-missing when from is omitted', async () => {
 		const provider = createSesProvider({ client: createFakeSesClient(() => ({ MessageId: 'x' })) })
 		const result = await provider.send({
@@ -143,6 +182,19 @@ describe('createSesProvider', () => {
 		expect(result.success).toBe(false)
 		if (!result.success) {
 			expect(result.reason).toBe('invalid-recipient')
+		}
+	})
+
+	it('returns configuration-missing when html and text are omitted', async () => {
+		const provider = createSesProvider({ client: createFakeSesClient(() => ({ MessageId: 'x' })) })
+		const result = await provider.send({
+			from: 'a@b.com',
+			to: 'u@e.com',
+			subject: 'x'
+		} as any)
+		expect(result.success).toBe(false)
+		if (!result.success) {
+			expect(result.reason).toBe('configuration-missing')
 		}
 	})
 

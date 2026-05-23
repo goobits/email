@@ -74,6 +74,17 @@ describe('createEmailService', () => {
 		}
 	})
 
+	it('rejects messages without html or text before calling provider', async () => {
+		const provider = createMockProvider()
+		const service = createEmailService({ provider, from: 'a@b.com' })
+		const result = await service.send({ to: 'u@e.com', subject: 'x' } as any)
+		expect(result.success).toBe(false)
+		if (!result.success) {
+			expect(result.reason).toBe('configuration-missing')
+		}
+		expect(provider.getSentMessages()).toHaveLength(0)
+	})
+
 	it('disabled service bypasses provider', async () => {
 		const provider = createMockProvider()
 		const service = createEmailService({ provider, from: 'a@b.com', disabled: true })

@@ -17,6 +17,9 @@ pnpm add @aws-sdk/client-ses
 import `@goobits/email/ses`. Consumers using Resend / SMTP / a custom
 provider don't pay for it.
 
+This package publishes TypeScript source entrypoints directly; no package
+build step is required before importing it in TS-aware runtimes/toolchains.
+
 ## Quick start
 
 ```ts
@@ -81,13 +84,20 @@ Returns `EmailService`:
   replyTo?: string
   cc?: string[]
   bcc?: string[]
-  attachments?: EmailAttachment[]
+  attachments?: {
+    filename: string
+    content: Uint8Array | ArrayBuffer | string  // bytes or base64 string
+    contentType?: string
+    inline?: boolean
+    cid?: string
+  }[]
   headers?: Record<string, string>
 }
 ```
 
-At least one of `html` or `text` must be supplied. Most providers do better
-when both are.
+At least one of `html` or `text` must be supplied; the service and SES
+provider reject messages without a body before sending. Most providers do
+better when both are.
 
 ### `EmailResult`
 
@@ -109,6 +119,10 @@ AWS SES via `@aws-sdk/client-ses` v3. The consumer owns the SES client
 (region, credentials, retry strategy). Uses `SendEmailCommand` for
 attachment-free messages and `SendRawEmailCommand` (RFC 2822 raw MIME)
 when attachments or custom headers are present.
+
+The raw MIME path rejects CR/LF in header-bearing fields and validates
+custom header names before sending. Inline attachments emit `Content-ID`;
+set `cid` explicitly and reference it from HTML as `cid:<cid>`.
 
 Maps known SES errors:
 - `Throttling` / `ThrottlingException` → `reason: 'rate-limited'`

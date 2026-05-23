@@ -6,6 +6,12 @@
 	"main": "./src/index.ts",
 	"types": "./src/index.ts",
 	"sideEffects": false,
+	"files": [
+		"src",
+		"README.md",
+		"LICENSE",
+		"CHANGELOG.md"
+	],
 	"exports": {
 		".": "./src/index.ts",
 		"./ses": "./src/providers/ses.ts"

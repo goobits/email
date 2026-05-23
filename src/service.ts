@@ -10,8 +10,8 @@
  * @module @goobits/email
  */
 
-import { type Logger, resolveLogger } from './logger.js'
-import type { EmailMessage, EmailProvider, EmailResult } from './types.js'
+import { type Logger, resolveLogger } from './logger.ts'
+import type { EmailMessage, EmailProvider, EmailResult } from './types.ts'
 
 export interface EmailServiceConfig {
 	/** Backing transport. Required. */
@@ -34,7 +34,9 @@ export interface EmailServiceConfig {
  * The send-side options that vary per-call. Subset of `EmailMessage`
  * (you don't pass the recipient through `sendBatch` — see below).
  */
-export type BatchMessage = Omit<EmailMessage, 'to'>
+type DistributiveOmit<T, K extends keyof any> = T extends unknown ? Omit<T, K> : never
+
+export type BatchMessage = DistributiveOmit<EmailMessage, 'to'>
 
 export interface EmailService {
 	readonly provider: EmailProvider
@@ -75,12 +77,21 @@ export function createEmailService(config: EmailServiceConfig): EmailService {
 	const { provider, from, replyTo, disabled = false } = config
 
 	function applyDefaults(message: EmailMessage): EmailMessage {
-		const out: EmailMessage = {
+		// `EmailMessage` is a discriminated union (`{html: string, text?: string}`
+		// | `{text: string, html?: string}`). Spreading widens both html/text
+		// to `string | undefined`, breaking the narrowing — but the incoming
+		// `message` is already a valid `EmailMessage`, so the spread output is
+		// too. Cast to bypass the inference limitation; runtime shape is unchanged.
+		const out = {
 			...message,
 			from: message.from ?? from
-		}
+		} as EmailMessage
 		if (replyTo && !message.replyTo) out.replyTo = replyTo
 		return out
+	}
+
+	function hasBodyContent(message: EmailMessage | BatchMessage): boolean {
+		return Boolean(message.html || message.text)
 	}
 
 	async function send(message: EmailMessage): Promise<EmailResult> {
@@ -93,6 +104,22 @@ export function createEmailService(config: EmailServiceConfig): EmailService {
 		}
 
 		const prepared = applyDefaults(message)
+		if (!hasBodyContent(prepared)) {
+			const result: EmailResult = {
+				success: false,
+				provider: provider.name,
+				error: 'At least one of message.html or message.text is required',
+				reason: 'configuration-missing'
+			}
+			log.error('Email send failed', {
+				provider: provider.name,
+				to: Array.isArray(prepared.to) ? prepared.to.join(',') : prepared.to,
+				subject: prepared.subject,
+				error: result.error,
+				reason: result.reason
+			})
+			return result
+		}
 		const result = await provider.send(prepared)
 		if (result.success) {
 			log.info('Email sent', {
@@ -120,7 +147,7 @@ export function createEmailService(config: EmailServiceConfig): EmailService {
 		// want concurrency can map `recipients` themselves with `Promise.all`.
 		const results: EmailResult[] = []
 		for (const to of recipients) {
-			results.push(await send({ ...message, to }))
+			results.push(await send({ ...message, to } as EmailMessage))
 		}
 		return results
 	}

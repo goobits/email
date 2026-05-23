@@ -10,24 +10,23 @@
 /** A single mail recipient — a bare address or `Name <addr@host>`. */
 export type EmailAddress = string
 
-/** A file attachment. `content` may be a Buffer (Node) or a base64 string. */
+/** Attachment bytes or a pre-encoded base64 string. */
+export type EmailAttachmentContent = Uint8Array | ArrayBuffer | string
+
+/** A file attachment. `content` may be bytes or a base64 string. */
 export interface EmailAttachment {
 	filename: string
-	content: Buffer | string
+	content: EmailAttachmentContent
 	contentType?: string
-	/** Set to true to attach inline (referenced via `cid:filename` in HTML). */
+	/** Set to true to attach inline. Reference it from HTML via `cid:<cid>`. */
 	inline?: boolean
+	/** Content-ID for inline attachments. Defaults to `filename` when omitted. */
+	cid?: string
 }
 
-/**
- * Inputs to a single `send` call. At least one of `html` or `text` must
- * be provided; passing both is recommended (clients pick best fit).
- */
-export interface EmailMessage {
+interface EmailMessageEnvelope {
 	to: EmailAddress | EmailAddress[]
 	subject: string
-	html?: string
-	text?: string
 	/** Override the configured `from` for this send. */
 	from?: EmailAddress
 	replyTo?: EmailAddress
@@ -37,6 +36,16 @@ export interface EmailMessage {
 	/** Free-form headers (provider-dependent — not all support custom headers). */
 	headers?: Record<string, string>
 }
+
+type EmailMessageContent =
+	| { html: string; text?: string }
+	| { text: string; html?: string }
+
+/**
+ * Inputs to a single `send` call. At least one of `html` or `text` must
+ * be provided; passing both is recommended (clients pick best fit).
+ */
+export type EmailMessage = EmailMessageEnvelope & EmailMessageContent
 
 /**
  * Discriminated result. `success: true` carries the provider-assigned
