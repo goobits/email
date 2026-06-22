@@ -232,6 +232,34 @@ describe('createSmtpProvider', () => {
 		}
 	})
 
+	it('maps ECONFIG error code → configuration-missing (nodemailer v7+ rename of ECONFIGURATION)', async () => {
+		const transporter = createFakeTransporter(() => {
+			const err: any = new Error('Invalid configuration')
+			err.code = 'ECONFIG'
+			throw err
+		})
+		const provider = createSmtpProvider({ transporter })
+		const result = await provider.send({ from: 'a@b.com', to: 'u@e.com', subject: 'x', text: 'x' })
+		expect(result.success).toBe(false)
+		if (!result.success) {
+			expect(result.reason).toBe('configuration-missing')
+		}
+	})
+
+	it('maps legacy ECONFIGURATION error code → configuration-missing (back-compat)', async () => {
+		const transporter = createFakeTransporter(() => {
+			const err: any = new Error('Invalid configuration')
+			err.code = 'ECONFIGURATION'
+			throw err
+		})
+		const provider = createSmtpProvider({ transporter })
+		const result = await provider.send({ from: 'a@b.com', to: 'u@e.com', subject: 'x', text: 'x' })
+		expect(result.success).toBe(false)
+		if (!result.success) {
+			expect(result.reason).toBe('configuration-missing')
+		}
+	})
+
 	it('maps SMTP 550 → invalid-recipient', async () => {
 		const transporter = createFakeTransporter(() => {
 			const err: any = new Error('Recipient not found')

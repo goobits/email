@@ -111,7 +111,7 @@ export function createResendProvider(options: ResendProviderOptions): EmailProvi
 					reason = 'invalid-recipient'
 				} else if (
 					name === 'missing_api_key'
-					|| name === 'invalid_api_Key' // sic: Resend SDK type uses this casing
+					|| name === 'invalid_api_key' // resend v6: RESEND_ERROR_CODE_KEY uses lowercase 'key'
 					|| name === 'missing_required_field'
 				) {
 					reason = 'configuration-missing'

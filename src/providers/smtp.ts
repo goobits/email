@@ -102,7 +102,10 @@ export function createSmtpProvider(options: SmtpProviderOptions): EmailProvider 
 			// nodemailer surfaces SMTP error codes via `responseCode`. Map common ones:
 			//   4xx — transient (rate limit, mailbox full, greylisting)
 			//   5xx — permanent (bad recipient, auth failure, policy)
-			if (code === 'EAUTH' || code === 'ECONFIGURATION') reason = 'configuration-missing'
+			// nodemailer v7+ renamed the invalid-config code from 'ECONFIGURATION' (v6)
+			// to 'ECONFIG' (centralized in nodemailer/lib/errors.js). Accept both so the
+			// mapping survives the major bump and any consumer still on an older transport.
+			if (code === 'EAUTH' || code === 'ECONFIG' || code === 'ECONFIGURATION') reason = 'configuration-missing'
 			else if (code === 'EENVELOPE' || responseCode === 550 || responseCode === 553) reason = 'invalid-recipient'
 			else if (responseCode === 421 || responseCode === 450 || responseCode === 451 || responseCode === 452) reason = 'rate-limited'
 			return buildResult(false, undefined, error, reason)

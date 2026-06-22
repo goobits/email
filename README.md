@@ -144,7 +144,7 @@ per-message via `message.headers['x-resend-tag']`.
 Error mapping:
 - `rate_limit_exceeded` → `reason: 'rate-limited'`
 - `invalid_from_address` / `validation_error` → `reason: 'invalid-recipient'`
-- `missing_api_key` / `invalid_api_Key` / `missing_required_field` → `reason: 'configuration-missing'`
+- `missing_api_key` / `invalid_api_key` / `missing_required_field` → `reason: 'configuration-missing'`
 - everything else → `reason: 'transport-error'`
 
 #### `createSmtpProvider({ transporter })`
@@ -156,7 +156,7 @@ emit `cid` + `contentDisposition: 'inline'`; base64 string content is
 decoded to `Buffer` to preserve byte-level fidelity.
 
 Error mapping:
-- `EAUTH` / `ECONFIGURATION` → `reason: 'configuration-missing'`
+- `EAUTH` / `ECONFIG` (`ECONFIGURATION` on nodemailer 6) → `reason: 'configuration-missing'`
 - `EENVELOPE` / SMTP 550 / 553 → `reason: 'invalid-recipient'`
 - SMTP 421 / 450 / 451 / 452 → `reason: 'rate-limited'`
 - everything else → `reason: 'transport-error'`
