@@ -266,10 +266,10 @@ describe('createResendProvider', () => {
 		}
 	})
 
-	it('maps Resend invalid_api_Key → configuration-missing', async () => {
+	it('maps Resend invalid_api_key → configuration-missing', async () => {
 		const client = createFakeResendClient(() => ({
 			data: null,
-			error: { name: 'invalid_api_Key', message: 'bad key' }
+			error: { name: 'invalid_api_key', message: 'bad key' }
 		}))
 		const provider = createResendProvider({ client })
 		const result = await provider.send({ from: 'a@b.com', to: 'u@e.com', subject: 'x', text: 'x' })

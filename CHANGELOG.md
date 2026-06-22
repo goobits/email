@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Updated all dependencies to their latest versions: `@aws-sdk/client-sesv2`
+  3.1074, `nodemailer` 9, `resend` 6, `typescript` 6, `@types/node` 26,
+  `@types/nodemailer` 8, `vitest` 4.1.
+- Widened peer-dependency ranges to match the tested majors: `nodemailer`
+  `^9.0.0`, `resend` `^6.0.0`, `typescript` `^5.0.0 || ^6.0.0`.
+  (`@aws-sdk/client-sesv2` stays `^3.0.0`.)
+
+### Fixed
+
+- Resend provider: the `invalid_api_key` error now maps to
+  `configuration-missing`. Resend v6 renamed this code from `invalid_api_Key`
+  (the prior odd casing), which had silently turned the mapping into a dead
+  branch.
+- SMTP provider: nodemailer's `ECONFIG` error now maps to
+  `configuration-missing`. nodemailer v7 renamed it from `ECONFIGURATION`;
+  both spellings are accepted so the mapping survives the upgrade and still
+  works with older transports.
+
 ## 1.0.0
 
 Initial release.
