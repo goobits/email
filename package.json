@@ -1,7 +1,7 @@
 {
 	"name": "@goobits/email",
 	"version": "1.0.0",
-	"description": "Provider-agnostic email sender with a pluggable transport interface. Ships AWS SES + in-memory mock providers; bring your own for Resend, SMTP, etc.",
+	"description": "Provider-agnostic email sender with AWS SES v2, Resend, SMTP, and in-memory mock providers.",
 	"type": "module",
 	"main": "./src/index.ts",
 	"types": "./src/index.ts",
@@ -38,7 +38,7 @@
 	"engines": {
 		"node": ">=22"
 	},
-	"packageManager": "pnpm@10.13.1",
+	"packageManager": "pnpm@11.10.0",
 	"peerDependencies": {
 		"@aws-sdk/client-sesv2": "^3.0.0",
 		"nodemailer": "^9.0.0",
@@ -63,10 +63,11 @@
 		"@aws-sdk/client-sesv2": "^3.1074.0",
 		"@types/node": "^26.0.0",
 		"@types/nodemailer": "^8.0.1",
+		"@vitest/coverage-v8": "^4.1.10",
 		"nodemailer": "^9.0.1",
 		"resend": "^6.14.0",
 		"typescript": "^6.0.3",
-		"vitest": "^4.1.9"
+		"vitest": "^4.1.10"
 	},
 	"scripts": {
 		"typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",

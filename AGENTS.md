@@ -10,7 +10,7 @@ modifying this package.
 
 - **Category:** library (ESM-only, TypeScript)
 - **Distribution:** git submodule consumed inside a pnpm workspace. Consumer bundlers (Vite/esbuild/SvelteKit) compile the `.ts` source directly — no build step, no `dist/`, no npm publish.
-- **Primary stack:** TypeScript 5.9 + vitest. Zero runtime dependencies. Optional peer-deps: `@aws-sdk/client-ses ^3` (only when using `/ses`), `typescript ^5`.
+- **Primary stack:** TypeScript 6 + Vitest 4. Zero runtime dependencies. Optional peer deps: `@aws-sdk/client-sesv2 ^3` (`/ses`), `resend ^6` (`/resend`), `nodemailer ^9` (`/smtp`), and TypeScript `^5 || ^6`.
 - **Runtime targets:** Node 22+, Bun, Deno, Cloudflare Workers (anything supporting `Promise` + the chosen provider's runtime contract).
 - **Engines:** Node `>=22`
 

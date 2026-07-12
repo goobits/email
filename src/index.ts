@@ -6,9 +6,10 @@
  * Provider implementations with peer-dep requirements live in their
  * own subpaths so consumers don't pay for unused providers:
  *
- *   - `@goobits/email`        — types + service + mock provider (no deps)
- *   - `@goobits/email/sesv2`  — AWS SES v2 provider (peer: @aws-sdk/client-sesv2)
- *   - `@goobits/email/ses`    — legacy AWS SES provider (peer: @aws-sdk/client-ses)
+ *   - `@goobits/email`         — types + service + mock provider (no deps)
+ *   - `@goobits/email/ses`     — AWS SES v2 provider (peer: @aws-sdk/client-sesv2)
+ *   - `@goobits/email/resend`  — Resend provider (peer: resend)
+ *   - `@goobits/email/smtp`    — SMTP provider (peer: nodemailer)
  *
  * @module @goobits/email
  */

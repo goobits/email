@@ -7,6 +7,9 @@
 - Updated all dependencies to their latest versions: `@aws-sdk/client-sesv2`
   3.1074, `nodemailer` 9, `resend` 6, `typescript` 6, `@types/node` 26,
   `@types/nodemailer` 8, `vitest` 4.1.
+- Declared the Vitest V8 coverage provider directly so standalone coverage
+  runs do not depend on a parent workspace installation.
+- Aligned the declared pnpm toolchain with the consuming workspace.
 - Widened peer-dependency ranges to match the tested majors: `nodemailer`
   `^9.0.0`, `resend` `^6.0.0`, `typescript` `^5.0.0 || ^6.0.0`.
   (`@aws-sdk/client-sesv2` stays `^3.0.0`.)
