@@ -47,7 +47,7 @@ export function createMockProvider(options: MockProviderOptions = {}): MockProvi
 		return {
 			success: true,
 			provider: 'mock',
-			messageId: `mock-${ messageCounter }`
+			messageId: `mock-${messageCounter}`
 		}
 	}
 

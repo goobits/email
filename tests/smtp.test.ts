@@ -49,7 +49,7 @@ describe('createSmtpProvider', () => {
 			text: 'hi'
 		})
 		expect(captured.from).toBe('sender@example.com')
-		expect(captured.to).toEqual([ 'user@example.com' ])
+		expect(captured.to).toEqual(['user@example.com'])
 		expect(captured.subject).toBe('hi')
 		expect(captured.html).toBe('<p>hi</p>')
 		expect(captured.text).toBe('hi')
@@ -65,14 +65,14 @@ describe('createSmtpProvider', () => {
 		await provider.send({
 			from: 'a@b.com',
 			to: 'u@e.com',
-			cc: [ 'cc@example.com' ],
-			bcc: [ 'bcc@example.com' ],
+			cc: ['cc@example.com'],
+			bcc: ['bcc@example.com'],
 			replyTo: 'reply@example.com',
 			subject: 'x',
 			text: 'x'
 		})
-		expect(captured.cc).toEqual([ 'cc@example.com' ])
-		expect(captured.bcc).toEqual([ 'bcc@example.com' ])
+		expect(captured.cc).toEqual(['cc@example.com'])
+		expect(captured.bcc).toEqual(['bcc@example.com'])
 		expect(captured.replyTo).toBe('reply@example.com')
 	})
 
@@ -128,9 +128,7 @@ describe('createSmtpProvider', () => {
 			to: 'u@e.com',
 			subject: 'x',
 			text: 'x',
-			attachments: [
-				{ filename: 'd.bin', content: Buffer.from('Hello').toString('base64') }
-			]
+			attachments: [{ filename: 'd.bin', content: Buffer.from('Hello').toString('base64') }]
 		})
 		expect(Buffer.isBuffer(captured.attachments[0].content)).toBe(true)
 		expect(captured.attachments[0].content.toString()).toBe('Hello')
@@ -149,7 +147,7 @@ describe('createSmtpProvider', () => {
 			subject: 'x',
 			html: '<img src="cid:logo">',
 			attachments: [
-				{ filename: 'logo.png', cid: 'logo', inline: true, content: new Uint8Array([ 1, 2, 3 ]) }
+				{ filename: 'logo.png', cid: 'logo', inline: true, content: new Uint8Array([1, 2, 3]) }
 			]
 		})
 		expect(captured.attachments[0].cid).toBe('logo')
@@ -168,9 +166,7 @@ describe('createSmtpProvider', () => {
 			to: 'u@e.com',
 			subject: 'x',
 			html: '<img src="cid:logo.png">',
-			attachments: [
-				{ filename: 'logo.png', inline: true, content: new Uint8Array([ 1 ]) }
-			]
+			attachments: [{ filename: 'logo.png', inline: true, content: new Uint8Array([1]) }]
 		})
 		expect(captured.attachments[0].cid).toBe('logo.png')
 	})
@@ -302,16 +298,22 @@ describe('createSmtpProvider', () => {
 	})
 
 	it('verify() returns success when transporter verifies', async () => {
-		const transporter = createFakeTransporter(() => ({ messageId: 'x' }), () => true)
+		const transporter = createFakeTransporter(
+			() => ({ messageId: 'x' }),
+			() => true
+		)
 		const provider = createSmtpProvider({ transporter })
 		const result = await provider.verify?.()
 		expect(result?.success).toBe(true)
 	})
 
 	it('verify() returns failure when transporter throws', async () => {
-		const transporter = createFakeTransporter(() => ({ messageId: 'x' }), () => {
-			throw new Error('Connection refused')
-		})
+		const transporter = createFakeTransporter(
+			() => ({ messageId: 'x' }),
+			() => {
+				throw new Error('Connection refused')
+			}
+		)
 		const provider = createSmtpProvider({ transporter })
 		const result = await provider.verify?.()
 		expect(result?.success).toBe(false)

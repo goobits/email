@@ -62,14 +62,24 @@ export function createSesProvider(options: SesProviderOptions): EmailProvider {
 
 	async function send(message: EmailMessage): Promise<EmailResult> {
 		if (!message.from) {
-			return buildResult(false, undefined, 'message.from is required (no service default supplied)', 'configuration-missing')
+			return buildResult(
+				false,
+				undefined,
+				'message.from is required (no service default supplied)',
+				'configuration-missing'
+			)
 		}
-		const toAddresses = Array.isArray(message.to) ? message.to : [ message.to ]
+		const toAddresses = Array.isArray(message.to) ? message.to : [message.to]
 		if (toAddresses.length === 0) {
 			return buildResult(false, undefined, 'No recipients supplied', 'invalid-recipient')
 		}
 		if (!message.html && !message.text) {
-			return buildResult(false, undefined, 'At least one of message.html or message.text is required', 'configuration-missing')
+			return buildResult(
+				false,
+				undefined,
+				'At least one of message.html or message.text is required',
+				'configuration-missing'
+			)
 		}
 
 		try {
@@ -88,21 +98,29 @@ export function createSesProvider(options: SesProviderOptions): EmailProvider {
 							...(message.text ? { Text: { Data: message.text, Charset: 'UTF-8' } } : {})
 						},
 						...(message.headers ? { Headers: buildHeaders(message.headers) } : {}),
-						...(message.attachments?.length ? { Attachments: message.attachments.map(buildAttachment) } : {})
+						...(message.attachments?.length
+							? { Attachments: message.attachments.map(buildAttachment) }
+							: {})
 					}
 				},
-				...(message.replyTo ? { ReplyToAddresses: [ message.replyTo ] } : {}),
+				...(message.replyTo ? { ReplyToAddresses: [message.replyTo] } : {}),
 				...(configurationSetName ? { ConfigurationSetName: configurationSetName } : {})
 			})
 			const result = await client.send(command)
 			return buildResult(true, result.MessageId)
-		} catch(err) {
+		} catch (err) {
 			const error = err instanceof Error ? err.message : String(err)
 			const errorName = err instanceof Error ? err.name : ''
-			let reason: 'configuration-missing' | 'rate-limited' | 'invalid-recipient' | 'transport-error' = 'transport-error'
+			let reason:
+				| 'configuration-missing'
+				| 'rate-limited'
+				| 'invalid-recipient'
+				| 'transport-error' = 'transport-error'
 			if (err instanceof SesValidationError) reason = 'configuration-missing'
-			else if (errorName === 'TooManyRequestsException' || errorName === 'LimitExceededException') reason = 'rate-limited'
-			else if (errorName === 'MessageRejected' || errorName === 'BadRequestException') reason = 'invalid-recipient'
+			else if (errorName === 'TooManyRequestsException' || errorName === 'LimitExceededException')
+				reason = 'rate-limited'
+			else if (errorName === 'MessageRejected' || errorName === 'BadRequestException')
+				reason = 'invalid-recipient'
 			return buildResult(false, undefined, error, reason)
 		}
 	}
@@ -120,7 +138,7 @@ class SesValidationError extends Error {
 }
 
 function buildHeaders(headers: Record<string, string>): Array<{ Name: string; Value: string }> {
-	return Object.entries(headers).map(([ name, value ]) => {
+	return Object.entries(headers).map(([name, value]) => {
 		const safeName = validateHeaderName(name)
 		const safeValue = validateHeaderValue(value)
 		return { Name: safeName, Value: safeValue }
@@ -132,36 +150,45 @@ function buildAttachment(attachment: NonNullable<EmailMessage['attachments']>[nu
 		FileName: validateAttachmentFilename(attachment.filename),
 		RawContent: attachmentContentToBytes(attachment.content),
 		...(attachment.contentType ? { ContentType: validateContentType(attachment.contentType) } : {}),
-		ContentDisposition: attachment.inline ? 'INLINE' as const : 'ATTACHMENT' as const,
-		...(attachment.inline ? { ContentId: validateContentId(attachment.cid ?? attachment.filename) } : {}),
+		ContentDisposition: attachment.inline ? ('INLINE' as const) : ('ATTACHMENT' as const),
+		...(attachment.inline
+			? { ContentId: validateContentId(attachment.cid ?? attachment.filename) }
+			: {}),
 		ContentTransferEncoding: 'BASE64' as const
 	}
 }
 
 function validateHeaderName(name: string): string {
 	if (name.length === 0 || name.length > 126 || !/^[\x21-\x39\x3B-\x7E]+$/.test(name)) {
-		throw new SesValidationError(`Invalid email header name: ${ name }`)
+		throw new SesValidationError(`Invalid email header name: ${name}`)
 	}
 	return name
 }
 
 function validateHeaderValue(value: string): string {
 	if (value.length > 995 || !/^[\x20-\x7E]*$/.test(value)) {
-		throw new SesValidationError('Email header values must be printable ASCII and at most 995 characters')
+		throw new SesValidationError(
+			'Email header values must be printable ASCII and at most 995 characters'
+		)
 	}
 	return value
 }
 
 function validateAttachmentFilename(filename: string): string {
 	if (filename.trim() === '' || /[\r\n]/.test(filename)) {
-		throw new SesValidationError('Attachment filename must not be empty or contain CR/LF characters')
+		throw new SesValidationError(
+			'Attachment filename must not be empty or contain CR/LF characters'
+		)
 	}
 	return filename
 }
 
 function validateContentType(value: string): string {
-	if (/[\r\n;]/.test(value) || !/^[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]*\/[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]*$/.test(value)) {
-		throw new SesValidationError(`Invalid attachment content type: ${ value }`)
+	if (
+		/[\r\n;]/.test(value) ||
+		!/^[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]*\/[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]*$/.test(value)
+	) {
+		throw new SesValidationError(`Invalid attachment content type: ${value}`)
 	}
 	return value
 }
@@ -181,7 +208,11 @@ function attachmentContentToBytes(content: EmailAttachmentContent): Uint8Array {
 
 function base64ToBytes(value: string): Uint8Array {
 	const normalized = value.replace(/\s+/g, '')
-	if (normalized === '' || !/^[A-Za-z0-9+/]*={0,2}$/.test(normalized) || normalized.length % 4 !== 0) {
+	if (
+		normalized === '' ||
+		!/^[A-Za-z0-9+/]*={0,2}$/.test(normalized) ||
+		normalized.length % 4 !== 0
+	) {
 		throw new SesValidationError('Attachment string content must be valid base64')
 	}
 

@@ -121,12 +121,12 @@ describe('createEmailService', () => {
 		const provider = createMockProvider()
 		const service = createEmailService({ provider, from: 'a@b.com' })
 		const results = await service.sendBatch(
-			[ 'one@example.com', 'two@example.com', 'three@example.com' ],
+			['one@example.com', 'two@example.com', 'three@example.com'],
 			{ subject: 'batch', text: 'hi' }
 		)
 		expect(results).toHaveLength(3)
 		expect(provider.getSentMessages()).toHaveLength(3)
-		expect(provider.getSentMessages().map(m => m.to)).toEqual([
+		expect(provider.getSentMessages().map((m) => m.to)).toEqual([
 			'one@example.com',
 			'two@example.com',
 			'three@example.com'

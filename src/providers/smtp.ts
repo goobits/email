@@ -68,14 +68,24 @@ export function createSmtpProvider(options: SmtpProviderOptions): EmailProvider 
 
 	async function send(message: EmailMessage): Promise<EmailResult> {
 		if (!message.from) {
-			return buildResult(false, undefined, 'message.from is required (no service default supplied)', 'configuration-missing')
+			return buildResult(
+				false,
+				undefined,
+				'message.from is required (no service default supplied)',
+				'configuration-missing'
+			)
 		}
-		const toAddresses = Array.isArray(message.to) ? message.to : [ message.to ]
+		const toAddresses = Array.isArray(message.to) ? message.to : [message.to]
 		if (toAddresses.length === 0) {
 			return buildResult(false, undefined, 'No recipients supplied', 'invalid-recipient')
 		}
 		if (!message.html && !message.text) {
-			return buildResult(false, undefined, 'At least one of message.html or message.text is required', 'configuration-missing')
+			return buildResult(
+				false,
+				undefined,
+				'At least one of message.html or message.text is required',
+				'configuration-missing'
+			)
 		}
 
 		try {
@@ -94,7 +104,7 @@ export function createSmtpProvider(options: SmtpProviderOptions): EmailProvider 
 					: {})
 			})
 			return buildResult(true, result.messageId)
-		} catch(err) {
+		} catch (err) {
 			const error = err instanceof Error ? err.message : String(err)
 			const code = (err as { code?: string; responseCode?: number } | undefined)?.code ?? ''
 			const responseCode = (err as { responseCode?: number } | undefined)?.responseCode
@@ -105,9 +115,17 @@ export function createSmtpProvider(options: SmtpProviderOptions): EmailProvider 
 			// nodemailer v7+ renamed the invalid-config code from 'ECONFIGURATION' (v6)
 			// to 'ECONFIG' (centralized in nodemailer/lib/errors.js). Accept both so the
 			// mapping survives the major bump and any consumer still on an older transport.
-			if (code === 'EAUTH' || code === 'ECONFIG' || code === 'ECONFIGURATION') reason = 'configuration-missing'
-			else if (code === 'EENVELOPE' || responseCode === 550 || responseCode === 553) reason = 'invalid-recipient'
-			else if (responseCode === 421 || responseCode === 450 || responseCode === 451 || responseCode === 452) reason = 'rate-limited'
+			if (code === 'EAUTH' || code === 'ECONFIG' || code === 'ECONFIGURATION')
+				reason = 'configuration-missing'
+			else if (code === 'EENVELOPE' || responseCode === 550 || responseCode === 553)
+				reason = 'invalid-recipient'
+			else if (
+				responseCode === 421 ||
+				responseCode === 450 ||
+				responseCode === 451 ||
+				responseCode === 452
+			)
+				reason = 'rate-limited'
 			return buildResult(false, undefined, error, reason)
 		}
 	}
@@ -116,7 +134,7 @@ export function createSmtpProvider(options: SmtpProviderOptions): EmailProvider 
 		try {
 			await transporter.verify()
 			return { success: true }
-		} catch(err) {
+		} catch (err) {
 			return { success: false, error: err instanceof Error ? err.message : String(err) }
 		}
 	}
@@ -131,9 +149,9 @@ function buildAttachment(attachment: NonNullable<EmailMessage['attachments']>[nu
 		...(attachment.contentType ? { contentType: attachment.contentType } : {}),
 		...(attachment.inline
 			? {
-				cid: attachment.cid ?? attachment.filename,
-				contentDisposition: 'inline' as const
-			}
+					cid: attachment.cid ?? attachment.filename,
+					contentDisposition: 'inline' as const
+				}
 			: {})
 	}
 }

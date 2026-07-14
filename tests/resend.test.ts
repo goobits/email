@@ -4,7 +4,10 @@ import { createResendProvider } from '../src/providers/resend.ts'
 
 // Resend SDK shape: `client.emails.send(payload)` → `{ data, error }`.
 // Stub it with a function we can spy + control per test.
-type ResendResponse = { data: { id: string } | null; error: { name?: string; message?: string } | null }
+type ResendResponse = {
+	data: { id: string } | null
+	error: { name?: string; message?: string } | null
+}
 
 function createFakeResendClient(
 	responder: (payload: unknown) => ResendResponse | Promise<ResendResponse>
@@ -50,7 +53,7 @@ describe('createResendProvider', () => {
 			text: 'hi'
 		})
 		expect(captured.from).toBe('sender@example.com')
-		expect(captured.to).toEqual([ 'user@example.com' ])
+		expect(captured.to).toEqual(['user@example.com'])
 		expect(captured.subject).toBe('hi')
 		expect(captured.html).toBe('<p>hi</p>')
 		expect(captured.text).toBe('hi')
@@ -66,14 +69,14 @@ describe('createResendProvider', () => {
 		await provider.send({
 			from: 'sender@example.com',
 			to: 'user@example.com',
-			cc: [ 'cc1@example.com', 'cc2@example.com' ],
-			bcc: [ 'bcc@example.com' ],
+			cc: ['cc1@example.com', 'cc2@example.com'],
+			bcc: ['bcc@example.com'],
 			replyTo: 'reply@example.com',
 			subject: 'hi',
 			text: 'hi'
 		})
-		expect(captured.cc).toEqual([ 'cc1@example.com', 'cc2@example.com' ])
-		expect(captured.bcc).toEqual([ 'bcc@example.com' ])
+		expect(captured.cc).toEqual(['cc1@example.com', 'cc2@example.com'])
+		expect(captured.bcc).toEqual(['bcc@example.com'])
 		expect(captured.replyTo).toBe('reply@example.com')
 	})
 
@@ -86,11 +89,11 @@ describe('createResendProvider', () => {
 		const provider = createResendProvider({ client })
 		await provider.send({
 			from: 'a@b.com',
-			to: [ 'one@e.com', 'two@e.com' ],
+			to: ['one@e.com', 'two@e.com'],
 			subject: 'x',
 			text: 'x'
 		})
-		expect(captured.to).toEqual([ 'one@e.com', 'two@e.com' ])
+		expect(captured.to).toEqual(['one@e.com', 'two@e.com'])
 	})
 
 	it('forwards default tag when supplied', async () => {
@@ -106,7 +109,7 @@ describe('createResendProvider', () => {
 			subject: 'x',
 			text: 'x'
 		})
-		expect(captured.tags).toEqual([ { name: 'category', value: 'transactional' } ])
+		expect(captured.tags).toEqual([{ name: 'category', value: 'transactional' }])
 	})
 
 	it('per-message x-resend-tag header overrides default tag', async () => {
@@ -123,7 +126,7 @@ describe('createResendProvider', () => {
 			text: 'x',
 			headers: { 'x-resend-tag': 'marketing' }
 		})
-		expect(captured.tags).toEqual([ { name: 'category', value: 'marketing' } ])
+		expect(captured.tags).toEqual([{ name: 'category', value: 'marketing' }])
 	})
 
 	it('maps attachments with Buffer content', async () => {
@@ -160,9 +163,7 @@ describe('createResendProvider', () => {
 			to: 'u@e.com',
 			subject: 'x',
 			text: 'x',
-			attachments: [
-				{ filename: 'd.bin', content: new Uint8Array([ 1, 2, 3 ]) }
-			]
+			attachments: [{ filename: 'd.bin', content: new Uint8Array([1, 2, 3]) }]
 		})
 		expect(Buffer.isBuffer(captured.attachments[0].content)).toBe(true)
 	})
@@ -179,15 +180,15 @@ describe('createResendProvider', () => {
 			to: 'u@e.com',
 			subject: 'x',
 			text: 'x',
-			attachments: [
-				{ filename: 'd.bin', content: 'SGVsbG8=' }
-			]
+			attachments: [{ filename: 'd.bin', content: 'SGVsbG8=' }]
 		})
 		expect(captured.attachments[0].content).toBe('SGVsbG8=')
 	})
 
 	it('returns configuration-missing when from is omitted', async () => {
-		const provider = createResendProvider({ client: createFakeResendClient(() => ({ data: { id: 'x' }, error: null })) })
+		const provider = createResendProvider({
+			client: createFakeResendClient(() => ({ data: { id: 'x' }, error: null }))
+		})
 		const result = await provider.send({
 			to: 'u@e.com',
 			subject: 'x',
@@ -200,7 +201,9 @@ describe('createResendProvider', () => {
 	})
 
 	it('returns invalid-recipient when to is an empty array', async () => {
-		const provider = createResendProvider({ client: createFakeResendClient(() => ({ data: { id: 'x' }, error: null })) })
+		const provider = createResendProvider({
+			client: createFakeResendClient(() => ({ data: { id: 'x' }, error: null }))
+		})
 		const result = await provider.send({
 			from: 'a@b.com',
 			to: [],
@@ -214,7 +217,9 @@ describe('createResendProvider', () => {
 	})
 
 	it('returns configuration-missing when both html and text omitted', async () => {
-		const provider = createResendProvider({ client: createFakeResendClient(() => ({ data: { id: 'x' }, error: null })) })
+		const provider = createResendProvider({
+			client: createFakeResendClient(() => ({ data: { id: 'x' }, error: null }))
+		})
 		const result = await provider.send({
 			from: 'a@b.com',
 			to: 'u@e.com',

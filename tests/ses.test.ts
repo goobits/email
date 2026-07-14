@@ -11,7 +11,7 @@ function createFakeSesClient(responder: (command: unknown) => unknown | Promise<
 describe('createSesProvider', () => {
 	it('uses SendEmailCommand with simple text/html content', async () => {
 		let captured: any
-		const client = createFakeSesClient(command => {
+		const client = createFakeSesClient((command) => {
 			captured = command
 			return { MessageId: 'ses-abc-123' }
 		})
@@ -31,7 +31,7 @@ describe('createSesProvider', () => {
 		}
 		expect(captured.constructor.name).toBe('SendEmailCommand')
 		expect(captured.input.FromEmailAddress).toBe('sender@example.com')
-		expect(captured.input.Destination.ToAddresses).toEqual([ 'user@example.com' ])
+		expect(captured.input.Destination.ToAddresses).toEqual(['user@example.com'])
 		expect(captured.input.Content.Simple.Subject.Data).toBe('hi')
 		expect(captured.input.Content.Simple.Body.Html.Data).toBe('<p>hi</p>')
 		expect(captured.input.Content.Simple.Body.Text.Data).toBe('hi')
@@ -39,7 +39,7 @@ describe('createSesProvider', () => {
 
 	it('forwards cc, bcc, replyTo, and configurationSetName', async () => {
 		let captured: any
-		const client = createFakeSesClient(command => {
+		const client = createFakeSesClient((command) => {
 			captured = command
 			return { MessageId: 'x' }
 		})
@@ -47,22 +47,22 @@ describe('createSesProvider', () => {
 		await provider.send({
 			from: 'sender@example.com',
 			to: 'user@example.com',
-			cc: [ 'cc@example.com' ],
-			bcc: [ 'bcc@example.com' ],
+			cc: ['cc@example.com'],
+			bcc: ['bcc@example.com'],
 			replyTo: 'reply@example.com',
 			subject: 'hi',
 			text: 'hi'
 		})
 
-		expect(captured.input.Destination.CcAddresses).toEqual([ 'cc@example.com' ])
-		expect(captured.input.Destination.BccAddresses).toEqual([ 'bcc@example.com' ])
-		expect(captured.input.ReplyToAddresses).toEqual([ 'reply@example.com' ])
+		expect(captured.input.Destination.CcAddresses).toEqual(['cc@example.com'])
+		expect(captured.input.Destination.BccAddresses).toEqual(['bcc@example.com'])
+		expect(captured.input.ReplyToAddresses).toEqual(['reply@example.com'])
 		expect(captured.input.ConfigurationSetName).toBe('tx-emails')
 	})
 
 	it('maps attachments to SES Simple.Attachments', async () => {
 		let captured: any
-		const client = createFakeSesClient(command => {
+		const client = createFakeSesClient((command) => {
 			captured = command
 			return { MessageId: 'x' }
 		})
@@ -73,14 +73,14 @@ describe('createSesProvider', () => {
 			subject: 'hi',
 			text: 'hi',
 			attachments: [
-				{ filename: 'doc.pdf', content: new Uint8Array([ 1, 2, 3 ]), contentType: 'application/pdf' }
+				{ filename: 'doc.pdf', content: new Uint8Array([1, 2, 3]), contentType: 'application/pdf' }
 			]
 		})
 
 		expect(captured.input.Content.Simple.Attachments).toEqual([
 			{
 				FileName: 'doc.pdf',
-				RawContent: new Uint8Array([ 1, 2, 3 ]),
+				RawContent: new Uint8Array([1, 2, 3]),
 				ContentType: 'application/pdf',
 				ContentDisposition: 'ATTACHMENT',
 				ContentTransferEncoding: 'BASE64'
@@ -90,7 +90,7 @@ describe('createSesProvider', () => {
 
 	it('maps inline attachments with ContentId and decodes base64 string content', async () => {
 		let captured: any
-		const client = createFakeSesClient(command => {
+		const client = createFakeSesClient((command) => {
 			captured = command
 			return { MessageId: 'x' }
 		})
@@ -101,7 +101,13 @@ describe('createSesProvider', () => {
 			subject: 'hi',
 			html: '<img src="cid:logo">',
 			attachments: [
-				{ filename: 'logo.png', cid: 'logo', inline: true, content: 'AQID', contentType: 'image/png' }
+				{
+					filename: 'logo.png',
+					cid: 'logo',
+					inline: true,
+					content: 'AQID',
+					contentType: 'image/png'
+				}
 			]
 		})
 
@@ -112,12 +118,14 @@ describe('createSesProvider', () => {
 			ContentId: 'logo',
 			ContentTransferEncoding: 'BASE64'
 		})
-		expect(captured.input.Content.Simple.Attachments[0].RawContent).toEqual(new Uint8Array([ 1, 2, 3 ]))
+		expect(captured.input.Content.Simple.Attachments[0].RawContent).toEqual(
+			new Uint8Array([1, 2, 3])
+		)
 	})
 
 	it('maps custom headers to SES message headers', async () => {
 		let captured: any
-		const client = createFakeSesClient(command => {
+		const client = createFakeSesClient((command) => {
 			captured = command
 			return { MessageId: 'x' }
 		})

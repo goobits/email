@@ -30,22 +30,22 @@ import { createSesProvider } from '@goobits/email/ses'
 import { SESv2Client } from '@aws-sdk/client-sesv2'
 
 const mailer = createEmailService({
-  provider: createSesProvider({ client: new SESv2Client({ region: 'us-east-1' }) }),
-  from: 'no-reply@example.com',
-  replyTo: 'support@example.com'
+	provider: createSesProvider({ client: new SESv2Client({ region: 'us-east-1' }) }),
+	from: 'no-reply@example.com',
+	replyTo: 'support@example.com'
 })
 
 const result = await mailer.send({
-  to: 'user@example.com',
-  subject: 'Welcome!',
-  html: '<p>Hello.</p>',
-  text: 'Hello.'
+	to: 'user@example.com',
+	subject: 'Welcome!',
+	html: '<p>Hello.</p>',
+	text: 'Hello.'
 })
 
 if (result.success) {
-  console.log('Sent', result.messageId)
+	console.log('Sent', result.messageId)
 } else {
-  console.error('Failed:', result.error, '(reason:', result.reason, ')')
+	console.error('Failed:', result.error, '(reason:', result.reason, ')')
 }
 ```
 
@@ -55,13 +55,13 @@ if (result.success) {
 
 Builds an `EmailService` bound to a provider + default sender.
 
-| Option       | Type            | Default | Notes                                                       |
-|--------------|-----------------|---------|-------------------------------------------------------------|
-| `provider`   | `EmailProvider` | —       | Required. The transport implementation.                     |
-| `from`       | `string`        | —       | Required. Default `From` header. Overridable per-call.      |
-| `replyTo`    | `string`        | —       | Optional default `Reply-To`. Overridable per-call.          |
-| `logger`     | `Logger`        | noop    | Pluggable. Same interface as `@goobits/logger` / `/security`. |
-| `disabled`   | `boolean`       | `false` | Kill-switch: skip provider, return `success: true`. For tests. |
+| Option     | Type            | Default | Notes                                                          |
+| ---------- | --------------- | ------- | -------------------------------------------------------------- |
+| `provider` | `EmailProvider` | —       | Required. The transport implementation.                        |
+| `from`     | `string`        | —       | Required. Default `From` header. Overridable per-call.         |
+| `replyTo`  | `string`        | —       | Optional default `Reply-To`. Overridable per-call.             |
+| `logger`   | `Logger`        | noop    | Pluggable. Same interface as `@goobits/logger` / `/security`.  |
+| `disabled` | `boolean`       | `false` | Kill-switch: skip provider, return `success: true`. For tests. |
 
 Returns `EmailService`:
 
@@ -107,10 +107,18 @@ Discriminated union — never throws on send failure, always resolves:
 
 ```ts
 type EmailResult =
-  | { success: true;  messageId?: string; provider: string }
-  | { success: false; provider: string;   error: string;
-      reason?: 'configuration-missing' | 'invalid-recipient' |
-               'transport-error' | 'rate-limited' | 'unknown' }
+	| { success: true; messageId?: string; provider: string }
+	| {
+			success: false
+			provider: string
+			error: string
+			reason?:
+				| 'configuration-missing'
+				| 'invalid-recipient'
+				| 'transport-error'
+				| 'rate-limited'
+				| 'unknown'
+	  }
 ```
 
 ### Providers
@@ -127,6 +135,7 @@ reference them from HTML as `cid:<cid>` (`cid` defaults to the attachment
 filename when omitted).
 
 Error mapping:
+
 - `TooManyRequestsException` / `LimitExceededException` → `reason: 'rate-limited'`
 - `MessageRejected` / `BadRequestException` → `reason: 'invalid-recipient'`
 - everything else → `reason: 'transport-error'`
@@ -142,6 +151,7 @@ send (visible in the Resend dashboard for filtering/analytics). Override
 per-message via `message.headers['x-resend-tag']`.
 
 Error mapping:
+
 - `rate_limit_exceeded` → `reason: 'rate-limited'`
 - `invalid_from_address` / `validation_error` → `reason: 'invalid-recipient'`
 - `missing_api_key` / `invalid_api_key` / `missing_required_field` → `reason: 'configuration-missing'`
@@ -156,6 +166,7 @@ emit `cid` + `contentDisposition: 'inline'`; base64 string content is
 decoded to `Buffer` to preserve byte-level fidelity.
 
 Error mapping:
+
 - `EAUTH` / `ECONFIG` (`ECONFIGURATION` on nodemailer 6) → `reason: 'configuration-missing'`
 - `EENVELOPE` / SMTP 550 / 553 → `reason: 'invalid-recipient'`
 - SMTP 421 / 450 / 451 / 452 → `reason: 'rate-limited'`
@@ -170,7 +181,7 @@ const provider = createMockProvider()
 const service = createEmailService({ provider, from: 'a@b.com' })
 await service.send({ to: 'u@e.com', subject: 'hi', text: 'hi' })
 
-provider.getSentMessages()  // → [{ to: 'u@e.com', ... }]
+provider.getSentMessages() // → [{ to: 'u@e.com', ... }]
 provider.clear()
 ```
 
@@ -183,12 +194,12 @@ error paths.
 import type { EmailProvider, EmailMessage, EmailResult } from '@goobits/email'
 
 export function createResendProvider({ apiKey }: { apiKey: string }): EmailProvider {
-  return {
-    name: 'resend',
-    async send(message: EmailMessage): Promise<EmailResult> {
-      // Call Resend API, return success/failure result
-    }
-  }
+	return {
+		name: 'resend',
+		async send(message: EmailMessage): Promise<EmailResult> {
+			// Call Resend API, return success/failure result
+		}
+	}
 }
 ```
 

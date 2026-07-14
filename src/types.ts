@@ -37,9 +37,7 @@ interface EmailMessageEnvelope {
 	headers?: Record<string, string>
 }
 
-type EmailMessageContent =
-	| { html: string; text?: string }
-	| { text: string; html?: string }
+type EmailMessageContent = { html: string; text?: string } | { text: string; html?: string }
 
 /**
  * Inputs to a single `send` call. At least one of `html` or `text` must
@@ -59,7 +57,12 @@ export type EmailResult =
 			success: false
 			provider: string
 			error: string
-			reason?: 'configuration-missing' | 'invalid-recipient' | 'transport-error' | 'rate-limited' | 'unknown'
+			reason?:
+				| 'configuration-missing'
+				| 'invalid-recipient'
+				| 'transport-error'
+				| 'rate-limited'
+				| 'unknown'
 	  }
 
 /**

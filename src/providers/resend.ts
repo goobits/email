@@ -62,14 +62,24 @@ export function createResendProvider(options: ResendProviderOptions): EmailProvi
 
 	async function send(message: EmailMessage): Promise<EmailResult> {
 		if (!message.from) {
-			return buildResult(false, undefined, 'message.from is required (no service default supplied)', 'configuration-missing')
+			return buildResult(
+				false,
+				undefined,
+				'message.from is required (no service default supplied)',
+				'configuration-missing'
+			)
 		}
-		const toAddresses = Array.isArray(message.to) ? message.to : [ message.to ]
+		const toAddresses = Array.isArray(message.to) ? message.to : [message.to]
 		if (toAddresses.length === 0) {
 			return buildResult(false, undefined, 'No recipients supplied', 'invalid-recipient')
 		}
 		if (!message.html && !message.text) {
-			return buildResult(false, undefined, 'At least one of message.html or message.text is required', 'configuration-missing')
+			return buildResult(
+				false,
+				undefined,
+				'At least one of message.html or message.text is required',
+				'configuration-missing'
+			)
 		}
 
 		try {
@@ -94,7 +104,9 @@ export function createResendProvider(options: ResendProviderOptions): EmailProvi
 			}
 
 			if (tag || message.headers?.['x-resend-tag']) {
-				payload['tags'] = [ { name: 'category', value: message.headers?.['x-resend-tag'] ?? tag ?? 'default' } ]
+				payload['tags'] = [
+					{ name: 'category', value: message.headers?.['x-resend-tag'] ?? tag ?? 'default' }
+				]
 			}
 
 			const { data, error } = await client.emails.send(
@@ -110,17 +122,22 @@ export function createResendProvider(options: ResendProviderOptions): EmailProvi
 				else if (name === 'invalid_from_address' || name === 'validation_error') {
 					reason = 'invalid-recipient'
 				} else if (
-					name === 'missing_api_key'
-					|| name === 'invalid_api_key' // resend v6: RESEND_ERROR_CODE_KEY uses lowercase 'key'
-					|| name === 'missing_required_field'
+					name === 'missing_api_key' ||
+					name === 'invalid_api_key' || // resend v6: RESEND_ERROR_CODE_KEY uses lowercase 'key'
+					name === 'missing_required_field'
 				) {
 					reason = 'configuration-missing'
 				}
-				return buildResult(false, undefined, error.message ?? name ?? 'Unknown Resend error', reason)
+				return buildResult(
+					false,
+					undefined,
+					error.message ?? name ?? 'Unknown Resend error',
+					reason
+				)
 			}
 
 			return buildResult(true, data?.id)
-		} catch(err) {
+		} catch (err) {
 			const error = err instanceof Error ? err.message : String(err)
 			return buildResult(false, undefined, error, 'transport-error')
 		}

@@ -21,11 +21,7 @@ export {
 	createEmailService
 } from './service.ts'
 
-export {
-	type Logger,
-	type LogContext,
-	noopLogger
-} from './logger.ts'
+export { type Logger, type LogContext, noopLogger } from './logger.ts'
 
 export {
 	type EmailAddress,
