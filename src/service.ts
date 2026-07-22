@@ -12,6 +12,7 @@
 
 import { type Logger, resolveLogger } from './logger.ts'
 import type { EmailMessage, EmailProvider, EmailResult } from './types.ts'
+import { EMAIL_BODY_REQUIRED_ERROR, hasEmailBodyContent } from './_internal/providerPolicy.ts'
 
 export interface EmailServiceConfig {
 	/** Backing transport. Required. */
@@ -90,10 +91,6 @@ export function createEmailService(config: EmailServiceConfig): EmailService {
 		return out
 	}
 
-	function hasBodyContent(message: EmailMessage | BatchMessage): boolean {
-		return Boolean(message.html || message.text)
-	}
-
 	async function send(message: EmailMessage): Promise<EmailResult> {
 		if (disabled) {
 			log.warn('Email send bypassed (service is disabled)', {
@@ -104,11 +101,11 @@ export function createEmailService(config: EmailServiceConfig): EmailService {
 		}
 
 		const prepared = applyDefaults(message)
-		if (!hasBodyContent(prepared)) {
+		if (!hasEmailBodyContent(prepared)) {
 			const result: EmailResult = {
 				success: false,
 				provider: provider.name,
-				error: 'At least one of message.html or message.text is required',
+				error: EMAIL_BODY_REQUIRED_ERROR,
 				reason: 'configuration-missing'
 			}
 			log.error('Email send failed', {

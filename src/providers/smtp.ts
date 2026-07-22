@@ -10,6 +10,12 @@
 import type { Transporter } from 'nodemailer'
 
 import type { EmailAttachmentContent, EmailMessage, EmailProvider, EmailResult } from '../types.ts'
+import {
+	buildProviderMessagePayload,
+	createProviderResultBuilder,
+	prepareProviderMessage,
+	type EmailFailureReason
+} from '../_internal/providerPolicy.ts'
 
 export interface SmtpProviderOptions {
 	/**
@@ -47,68 +53,25 @@ export interface SmtpProviderOptions {
 export function createSmtpProvider(options: SmtpProviderOptions): EmailProvider {
 	const { transporter } = options
 
-	type FailureReason = NonNullable<Extract<EmailResult, { success: false }>['reason']>
-
-	function buildResult(
-		success: boolean,
-		messageId?: string,
-		error?: string,
-		reason?: FailureReason
-	): EmailResult {
-		if (success && messageId) {
-			return { success: true, messageId, provider: 'smtp' }
-		}
-		return {
-			success: false,
-			provider: 'smtp',
-			error: error ?? 'SMTP send failed without an error message',
-			reason: reason ?? 'transport-error'
-		}
-	}
+	const buildResult = createProviderResultBuilder(
+		'smtp',
+		'SMTP send failed without an error message'
+	)
 
 	async function send(message: EmailMessage): Promise<EmailResult> {
-		if (!message.from) {
-			return buildResult(
-				false,
-				undefined,
-				'message.from is required (no service default supplied)',
-				'configuration-missing'
-			)
-		}
-		const toAddresses = Array.isArray(message.to) ? message.to : [message.to]
-		if (toAddresses.length === 0) {
-			return buildResult(false, undefined, 'No recipients supplied', 'invalid-recipient')
-		}
-		if (!message.html && !message.text) {
-			return buildResult(
-				false,
-				undefined,
-				'At least one of message.html or message.text is required',
-				'configuration-missing'
-			)
-		}
+		const prepared = prepareProviderMessage(message, buildResult)
+		if (!prepared.ok) return prepared.result
 
 		try {
-			const result = await transporter.sendMail({
-				from: message.from,
-				to: toAddresses,
-				subject: message.subject,
-				...(message.html ? { html: message.html } : {}),
-				...(message.text ? { text: message.text } : {}),
-				...(message.cc?.length ? { cc: message.cc } : {}),
-				...(message.bcc?.length ? { bcc: message.bcc } : {}),
-				...(message.replyTo ? { replyTo: message.replyTo } : {}),
-				...(message.headers ? { headers: message.headers } : {}),
-				...(message.attachments?.length
-					? { attachments: message.attachments.map(buildAttachment) }
-					: {})
-			})
+			const result = await transporter.sendMail(
+				buildProviderMessagePayload(message, prepared, buildAttachment)
+			)
 			return buildResult(true, result.messageId)
 		} catch (err) {
 			const error = err instanceof Error ? err.message : String(err)
 			const code = (err as { code?: string; responseCode?: number } | undefined)?.code ?? ''
 			const responseCode = (err as { responseCode?: number } | undefined)?.responseCode
-			let reason: FailureReason = 'transport-error'
+			let reason: EmailFailureReason = 'transport-error'
 			// nodemailer surfaces SMTP error codes via `responseCode`. Map common ones:
 			//   4xx — transient (rate limit, mailbox full, greylisting)
 			//   5xx — permanent (bad recipient, auth failure, policy)

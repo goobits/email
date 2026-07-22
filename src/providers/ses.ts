@@ -11,6 +11,11 @@ import type { SESv2Client } from '@aws-sdk/client-sesv2'
 import { SendEmailCommand } from '@aws-sdk/client-sesv2'
 
 import type { EmailAttachmentContent, EmailMessage, EmailProvider, EmailResult } from '../types.ts'
+import {
+	createProviderResultBuilder,
+	prepareProviderMessage,
+	type EmailFailureReason
+} from '../_internal/providerPolicy.ts'
 
 export interface SesProviderOptions {
 	/**
@@ -41,50 +46,19 @@ export interface SesProviderOptions {
 export function createSesProvider(options: SesProviderOptions): EmailProvider {
 	const { client, configurationSetName } = options
 
-	type FailureReason = NonNullable<Extract<EmailResult, { success: false }>['reason']>
-
-	function buildResult(
-		success: boolean,
-		messageId?: string,
-		error?: string,
-		reason?: FailureReason
-	): EmailResult {
-		if (success && messageId) {
-			return { success: true, messageId, provider: 'aws-ses' }
-		}
-		return {
-			success: false,
-			provider: 'aws-ses',
-			error: error ?? 'SES send failed without an error message',
-			reason: reason ?? 'transport-error'
-		}
-	}
+	const buildResult = createProviderResultBuilder(
+		'aws-ses',
+		'SES send failed without an error message'
+	)
 
 	async function send(message: EmailMessage): Promise<EmailResult> {
-		if (!message.from) {
-			return buildResult(
-				false,
-				undefined,
-				'message.from is required (no service default supplied)',
-				'configuration-missing'
-			)
-		}
-		const toAddresses = Array.isArray(message.to) ? message.to : [message.to]
-		if (toAddresses.length === 0) {
-			return buildResult(false, undefined, 'No recipients supplied', 'invalid-recipient')
-		}
-		if (!message.html && !message.text) {
-			return buildResult(
-				false,
-				undefined,
-				'At least one of message.html or message.text is required',
-				'configuration-missing'
-			)
-		}
+		const prepared = prepareProviderMessage(message, buildResult)
+		if (!prepared.ok) return prepared.result
+		const { toAddresses } = prepared
 
 		try {
 			const command = new SendEmailCommand({
-				FromEmailAddress: message.from,
+				FromEmailAddress: prepared.from,
 				Destination: {
 					ToAddresses: toAddresses,
 					...(message.cc?.length ? { CcAddresses: message.cc } : {}),
@@ -111,11 +85,7 @@ export function createSesProvider(options: SesProviderOptions): EmailProvider {
 		} catch (err) {
 			const error = err instanceof Error ? err.message : String(err)
 			const errorName = err instanceof Error ? err.name : ''
-			let reason:
-				| 'configuration-missing'
-				| 'rate-limited'
-				| 'invalid-recipient'
-				| 'transport-error' = 'transport-error'
+			let reason: EmailFailureReason = 'transport-error'
 			if (err instanceof SesValidationError) reason = 'configuration-missing'
 			else if (errorName === 'TooManyRequestsException' || errorName === 'LimitExceededException')
 				reason = 'rate-limited'

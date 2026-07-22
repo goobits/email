@@ -11,6 +11,12 @@
 import type { Resend } from 'resend'
 
 import type { EmailAttachmentContent, EmailMessage, EmailProvider, EmailResult } from '../types.ts'
+import {
+	buildProviderMessagePayload,
+	createProviderResultBuilder,
+	prepareProviderMessage,
+	type EmailFailureReason
+} from '../_internal/providerPolicy.ts'
 
 export interface ResendProviderOptions {
 	/**
@@ -41,46 +47,14 @@ export interface ResendProviderOptions {
 export function createResendProvider(options: ResendProviderOptions): EmailProvider {
 	const { client, tag } = options
 
-	type FailureReason = NonNullable<Extract<EmailResult, { success: false }>['reason']>
-
-	function buildResult(
-		success: boolean,
-		messageId?: string,
-		error?: string,
-		reason?: FailureReason
-	): EmailResult {
-		if (success && messageId) {
-			return { success: true, messageId, provider: 'resend' }
-		}
-		return {
-			success: false,
-			provider: 'resend',
-			error: error ?? 'Resend send failed without an error message',
-			reason: reason ?? 'transport-error'
-		}
-	}
+	const buildResult = createProviderResultBuilder(
+		'resend',
+		'Resend send failed without an error message'
+	)
 
 	async function send(message: EmailMessage): Promise<EmailResult> {
-		if (!message.from) {
-			return buildResult(
-				false,
-				undefined,
-				'message.from is required (no service default supplied)',
-				'configuration-missing'
-			)
-		}
-		const toAddresses = Array.isArray(message.to) ? message.to : [message.to]
-		if (toAddresses.length === 0) {
-			return buildResult(false, undefined, 'No recipients supplied', 'invalid-recipient')
-		}
-		if (!message.html && !message.text) {
-			return buildResult(
-				false,
-				undefined,
-				'At least one of message.html or message.text is required',
-				'configuration-missing'
-			)
-		}
+		const prepared = prepareProviderMessage(message, buildResult)
+		if (!prepared.ok) return prepared.result
 
 		try {
 			// Resend's `CreateEmailOptions` is `RequireAtLeastOne<{html, text, react}>
@@ -88,20 +62,11 @@ export function createResendProvider(options: ResendProviderOptions): EmailProvi
 			// optional, which TypeScript can't reconcile with the AtLeastOne shape
 			// even though we've already validated that one is present above.
 			// Build as Record<string, unknown> + cast at the boundary.
-			const payload: Record<string, unknown> = {
-				from: message.from,
-				to: toAddresses,
-				subject: message.subject,
-				...(message.html ? { html: message.html } : {}),
-				...(message.text ? { text: message.text } : {}),
-				...(message.cc?.length ? { cc: message.cc } : {}),
-				...(message.bcc?.length ? { bcc: message.bcc } : {}),
-				...(message.replyTo ? { replyTo: message.replyTo } : {}),
-				...(message.headers ? { headers: message.headers } : {}),
-				...(message.attachments?.length
-					? { attachments: message.attachments.map(buildAttachment) }
-					: {})
-			}
+			const payload: Record<string, unknown> = buildProviderMessagePayload(
+				message,
+				prepared,
+				buildAttachment
+			)
 
 			if (tag || message.headers?.['x-resend-tag']) {
 				payload['tags'] = [
@@ -115,7 +80,7 @@ export function createResendProvider(options: ResendProviderOptions): EmailProvi
 
 			if (error) {
 				const name: string = error.name ?? ''
-				let reason: FailureReason = 'transport-error'
+				let reason: EmailFailureReason = 'transport-error'
 				// Resend error names — RESEND_ERROR_CODES_BY_KEY in the SDK.
 				// https://resend.com/docs/api-reference/errors
 				if (name === 'rate_limit_exceeded') reason = 'rate-limited'
